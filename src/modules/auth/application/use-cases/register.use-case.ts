@@ -1,10 +1,11 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { v4 as uuid } from 'uuid';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { IPasswordHasher, PASSWORD_HASHER } from '../../domain/ports/password-hasher.port';
 import { ITokenGenerator, TOKEN_GENERATOR } from '../../domain/ports/token-generator.port';
 import { ITenantRepository, TENANT_REPOSITORY } from '../../../tenants/domain/ports/tenant.repository.port';
+import { Tenant } from '../../../tenants/domain/entities/tenant.entity';
+import { TenantOrmEntity } from '../../../tenants/infrastructure/persistence/tenant.orm-entity';
 import { UserOrmEntity } from '../../infrastructure/persistence/user.orm-entity';
 import { RegisterDto } from '../dtos/register.dto';
 
@@ -19,6 +20,8 @@ export class RegisterUseCase {
   constructor(
     @InjectRepository(UserOrmEntity)
     private readonly userOrm: Repository<UserOrmEntity>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     @Inject(PASSWORD_HASHER)
     private readonly hasher: IPasswordHasher,
     @Inject(TOKEN_GENERATOR)
@@ -28,24 +31,38 @@ export class RegisterUseCase {
   ) {}
 
   async execute(dto: RegisterDto): Promise<AuthResult> {
-    const existing = await this.userOrm.findOneBy({ email: dto.email });
-    if (existing) throw new ConflictException('Email already in use');
+    const existingUser = await this.userOrm.findOneBy({ email: dto.owner.email });
+    if (existingUser) throw new ConflictException('Este e-mail já está cadastrado.');
 
-    const tenant = await this.tenantRepository.findBySlug(dto.tenantSlug);
-    if (!tenant) throw new ConflictException(`Tenant slug "${dto.tenantSlug}" not found. Create the tenant first.`);
+    const existingTenant = await this.tenantRepository.findBySlug(dto.tenant.slug);
+    if (existingTenant) throw new ConflictException(`Slug "${dto.tenant.slug}" já está em uso.`);
 
-    const passwordHash = await this.hasher.hash(dto.password);
+    const tenant = Tenant.create({
+      name: dto.tenant.name,
+      slug: dto.tenant.slug,
+      orderMode: dto.tenant.orderMode,
+    });
+
+    const passwordHash = await this.hasher.hash(dto.owner.password);
 
     const user = this.userOrm.create({
-      id: uuid(),
+      id: Tenant.generateId(),
       tenantId: tenant.id,
-      name: dto.name,
-      email: dto.email,
+      name: dto.owner.name,
+      email: dto.owner.email,
       passwordHash,
       role: 'owner',
     });
 
-    await this.userOrm.save(user);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.insert(TenantOrmEntity, {
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+        orderMode: tenant.orderMode,
+      });
+      await manager.insert(UserOrmEntity, user);
+    });
 
     const accessToken = this.tokenGenerator.generate({
       sub: user.id,
