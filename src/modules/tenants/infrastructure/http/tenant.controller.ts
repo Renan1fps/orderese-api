@@ -11,8 +11,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateTenantUseCase } from '../../application/use-cases/create-tenant.use-case';
 import { GetTenantUseCase } from '../../application/use-cases/get-tenant.use-case';
 import { CreateTenantDto } from '../../application/dtos/create-tenant.dto';
-import { UpdateTenantDto } from '../../application/dtos/update-tenant.dto';
-import { JwtAuthGuard } from '../../../../shared/infrastructure/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@shared/infrastructure/guards/jwt-auth.guard';
 
 @ApiTags('Tenants')
 @Controller('tenants')

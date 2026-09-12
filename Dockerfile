@@ -9,7 +9,7 @@ COPY . .
 RUN npm run build
 
 # ---- production image ----
-FROM node:22-slim AS production
+FROM node:22-slimpublic.ecr.aws/docker/library/node:24-slim AS production
 
 WORKDIR /app
 
