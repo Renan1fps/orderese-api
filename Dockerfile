@@ -1,4 +1,4 @@
-FROM node:24-slim AS builder
+FROM public.ecr.aws/docker/library/node:22-slim AS builder
 
 WORKDIR /app
 
