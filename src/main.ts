@@ -31,7 +31,7 @@ async function bootstrap() {
   app.useGlobalFilters(new DomainExceptionFilter());
 
   app.enableCors({
-    origin: ['http://localhost:8080', 'https://order-ease-glow.lovable.app'], // ou array de origens permitidas
+    origin: ['http://localhost:8080', 'https://order-ease-glow.lovable.app', 'https://order-ease-glow-production.up.railway.app'], // ou array de origens permitidas
     credentials: true, // se você usa cookies/sessão/autenticação com credenciais
   });
 
